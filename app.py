@@ -1,6 +1,10 @@
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from database.db import (
+    get_db, init_db, seed_db, create_user,
+    get_user_by_email, get_user_by_id, get_expense_summary,
+    get_expenses_for_user, get_category_breakdown
+)
 from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
@@ -70,7 +74,7 @@ def login():
 
         session["user_id"]   = user["id"]
         session["user_name"] = user["name"]
-        return redirect(url_for("landing"))
+        return redirect(url_for("profile"))
 
     return render_template("login.html")
 
@@ -97,7 +101,28 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user = get_user_by_id(session["user_id"])
+    if user is None:
+        abort(404)
+
+    summary = get_expense_summary(session["user_id"])
+    expenses = get_expenses_for_user(session["user_id"])
+    categories = get_category_breakdown(session["user_id"])
+
+    return render_template(
+        "profile.html",
+        user_name=user["name"],
+        user_email=user["email"],
+        user_joined=user["created_at"],
+        total_spent=summary["total_spent"],
+        expense_count=summary["expense_count"],
+        top_category=summary["top_category"],
+        expenses=expenses,
+        categories=categories,
+    )
 
 
 @app.route("/expenses/add")
