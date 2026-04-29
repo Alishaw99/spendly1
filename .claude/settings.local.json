@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c \"from app import app\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(node /home/tariq/.claude/plugins/cache/agents-observe/agents-observe/0.9.2/hooks/scripts/observe_cli.mjs hook-sync)"
     ]
   }
 }
