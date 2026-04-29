@@ -1,10 +1,7 @@
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
-from database.db import (
-    get_db, init_db, seed_db, create_user,
-    get_user_by_email, get_user_by_id, get_expense_summary,
-    get_expenses_for_user, get_category_breakdown
-)
+from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+import database.queries as queries
 from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
@@ -104,21 +101,22 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    user = get_user_by_id(session["user_id"])
+    user = queries.get_user_by_id(session["user_id"])
     if user is None:
         abort(404)
 
-    summary = get_expense_summary(session["user_id"])
-    expenses = get_expenses_for_user(session["user_id"])
-    categories = get_category_breakdown(session["user_id"])
+    summary  = queries.get_summary_stats(session["user_id"])
+    expenses = queries.get_recent_transactions(session["user_id"])
+    raw_cats = queries.get_category_breakdown(session["user_id"])
+    categories = [{"category": c["name"], "total": c["amount"]} for c in raw_cats]
 
     return render_template(
         "profile.html",
         user_name=user["name"],
         user_email=user["email"],
-        user_joined=user["created_at"],
+        user_joined=user["member_since"],
         total_spent=summary["total_spent"],
-        expense_count=summary["expense_count"],
+        expense_count=summary["transaction_count"],
         top_category=summary["top_category"],
         expenses=expenses,
         categories=categories,
