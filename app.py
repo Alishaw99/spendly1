@@ -1,13 +1,16 @@
+import os
 import sqlite3
 import calendar
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
-from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+from database.db import get_db, init_db, seed_db, create_user, get_user_by_email, add_expense_to_db
 import database.queries as queries
 from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-key"
+
+CATEGORIES = ["Food", "Transport", "Bills", "Health", "Entertainment", "Shopping", "Other"]
 
 with app.app_context():
     init_db()
@@ -188,9 +191,43 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    if not session.get("user_id"):
+        if request.method == "POST":
+            abort(403)
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        amount_raw   = request.form.get("amount", "").strip()
+        category     = request.form.get("category", "")
+        expense_date = request.form.get("date", "").strip()
+        description  = request.form.get("description", "").strip()
+
+        try:
+            amount = float(amount_raw)
+            if amount <= 0:
+                raise ValueError
+        except ValueError:
+            flash("Amount must be a positive number.", "error")
+            return render_template("add_expense.html", categories=CATEGORIES, form=request.form)
+
+        if category not in CATEGORIES:
+            flash("Please select a valid category.", "error")
+            return render_template("add_expense.html", categories=CATEGORIES, form=request.form)
+
+        try:
+            datetime.strptime(expense_date, "%Y-%m-%d")
+        except ValueError:
+            flash("Please enter a valid date.", "error")
+            return render_template("add_expense.html", categories=CATEGORIES, form=request.form)
+
+        add_expense_to_db(session["user_id"], amount, category, expense_date, description or None)
+        flash("Expense added successfully.", "success")
+        return redirect(url_for("profile"))
+
+    today = datetime.today().date().isoformat()
+    return render_template("add_expense.html", categories=CATEGORIES, form={"date": today})
 
 
 @app.route("/expenses/<int:id>/edit")
@@ -204,4 +241,4 @@ def delete_expense(id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1", port=5001)

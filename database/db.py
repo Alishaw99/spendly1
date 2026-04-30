@@ -129,6 +129,16 @@ def get_user_by_email(email):
     return user
 
 
+def add_expense_to_db(user_id, amount, category, date, description):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+        (user_id, amount, category, date, description),
+    )
+    conn.commit()
+    conn.close()
+
+
 def create_user(name, email, password):
     password_hash = generate_password_hash(password)
     conn = get_db()
