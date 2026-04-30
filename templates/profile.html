@@ -46,8 +46,52 @@
       </div>
     </div>
 
+    <div class="profile-filter-card">
+      <div class="profile-filter-presets">
+        <a href="{{ url_for('profile', period='3m') }}"
+           class="profile-filter-preset {% if period == '3m' %}profile-filter-preset--active{% endif %}">
+          Last 3 Months
+        </a>
+        <a href="{{ url_for('profile', period='6m') }}"
+           class="profile-filter-preset {% if period == '6m' %}profile-filter-preset--active{% endif %}">
+          Last 6 Months
+        </a>
+        <a href="{{ url_for('profile') }}"
+           class="profile-filter-preset {% if period == 'all' %}profile-filter-preset--active{% endif %}">
+          All Time
+        </a>
+      </div>
+      <div class="profile-filter-divider"></div>
+      <form method="GET" action="{{ url_for('profile') }}" class="profile-filter-custom">
+        <div class="profile-filter-group">
+          <label class="profile-filter-label" for="filter-from">From</label>
+          <input class="profile-filter-input" type="date" id="filter-from"
+                 name="from" value="{{ date_from if period == 'custom' else '' }}">
+        </div>
+        <div class="profile-filter-group">
+          <label class="profile-filter-label" for="filter-to">To</label>
+          <input class="profile-filter-input" type="date" id="filter-to"
+                 name="to" value="{{ date_to if period == 'custom' else '' }}">
+        </div>
+        <div class="profile-filter-actions">
+          <button type="submit" class="profile-filter-btn">Apply</button>
+        </div>
+      </form>
+    </div>
+
     <div class="profile-stats-heading">
-      <h2 class="profile-section-title">Spending Summary</h2>
+      <h2 class="profile-section-title">
+        Spending Summary
+        {% if period == '3m' %}
+          <span class="profile-filter-badge">Last 3 Months</span>
+        {% elif period == '6m' %}
+          <span class="profile-filter-badge">Last 6 Months</span>
+        {% elif period == 'custom' %}
+          <span class="profile-filter-badge">
+            {{ date_from_display or '…' }} – {{ date_to_display or '…' }}
+          </span>
+        {% endif %}
+      </h2>
     </div>
 
     <div class="profile-stats-grid">
