@@ -1,4 +1,6 @@
 import sqlite3
+import calendar
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
 from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
 import database.queries as queries
@@ -10,6 +12,35 @@ app.secret_key = "dev-secret-key"
 with app.app_context():
     init_db()
     seed_db()
+
+
+# ------------------------------------------------------------------ #
+# Date filter helpers                                                 #
+# ------------------------------------------------------------------ #
+
+def months_ago(n):
+    today = datetime.today().date()
+    month = today.month - n
+    year  = today.year + (month - 1) // 12
+    month = ((month - 1) % 12) + 1
+    day   = min(today.day, calendar.monthrange(year, month)[1])
+    return datetime(year, month, day).date().isoformat()
+
+
+def parse_date(val):
+    if not val:
+        return None
+    try:
+        datetime.strptime(val, "%Y-%m-%d")
+        return val
+    except ValueError:
+        return None
+
+
+def fmt_display(val):
+    if val is None:
+        return None
+    return datetime.strptime(val, "%Y-%m-%d").strftime("%d %b %Y")
 
 
 # ------------------------------------------------------------------ #
@@ -105,9 +136,31 @@ def profile():
     if user is None:
         abort(404)
 
-    summary  = queries.get_summary_stats(session["user_id"])
-    expenses = queries.get_recent_transactions(session["user_id"])
-    raw_cats = queries.get_category_breakdown(session["user_id"])
+    today     = datetime.today().date()
+    today_str = today.isoformat()
+    presets   = {"3m": months_ago(3), "6m": months_ago(6)}
+
+    # Custom date range takes priority over preset buttons
+    custom_from = parse_date(request.args.get("from", "").strip())
+    custom_to   = parse_date(request.args.get("to",   "").strip())
+
+    if custom_from or custom_to:
+        period    = "custom"
+        date_from = custom_from
+        date_to   = custom_to
+    else:
+        period = request.args.get("period", "all")
+        if period in presets:
+            date_from = presets[period]
+            date_to   = today_str
+        else:
+            period    = "all"
+            date_from = None
+            date_to   = None
+
+    summary  = queries.get_summary_stats(session["user_id"], date_from=date_from, date_to=date_to)
+    expenses = queries.get_recent_transactions(session["user_id"], date_from=date_from, date_to=date_to)
+    raw_cats = queries.get_category_breakdown(session["user_id"], date_from=date_from, date_to=date_to)
     categories = [{"category": c["name"], "total": c["amount"]} for c in raw_cats]
 
     return render_template(
@@ -120,6 +173,11 @@ def profile():
         top_category=summary["top_category"],
         expenses=expenses,
         categories=categories,
+        period=period,
+        date_from=date_from,
+        date_to=date_to,
+        date_from_display=fmt_display(date_from),
+        date_to_display=fmt_display(date_to),
     )
 
 
